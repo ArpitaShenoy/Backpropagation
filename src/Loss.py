@@ -1,4 +1,5 @@
 import numpy as np
+from .Node import ValueNode
 
 class MSELoss():
     
@@ -7,7 +8,7 @@ class MSELoss():
         self.preds = None
         self.targs = None
     
-    def forward(self, preds: np.ndarray, targs: np.ndarray):
+    def forward(self, preds: ValueNode, targs: np.ndarray):
         """Calculates the loss.
         
         Args:
@@ -15,15 +16,25 @@ class MSELoss():
             targs (np.ndarray) : ground truth labels
         """
         # check if the prediction shape matches the targs shape
+        if isinstance(preds, ValueNode):
+            self.x = preds
+        else:
+            self.x = ValueNode(data=preds)
         if not isinstance(targs, np.ndarray):
             targs = np.array(targs)
-        if preds.shape == targs.shape:
+        if preds.data.shape == targs.shape:
             # calculate the mean squared error
             self.targs = targs
-            self.loss = np.sum(((targs-preds)**2))/len(targs)
-        elif preds.shape == targs.T.shape:
+            self.loss = ValueNode(data=np.sum(((targs-preds.data)**2))/len(preds.data.T),
+                                  op="mse",
+                                  _prev=[preds],
+                                  backward_fn=self._backward)
+        elif preds.data.shape == targs.T.shape:
             self.targs = targs.T
-            self.loss = np.sum(((targs-preds.T)**2))/len(targs.T)
+            self.loss = ValueNode(data=np.sum(((targs-preds.data.T)**2))/len(preds.data.T),
+                                  op="mse",
+                                  _prev=[preds],
+                                  backward_fn=self._backward)
 
         # save the predictions to calculate the derivatives later
         self.preds = preds
@@ -36,12 +47,20 @@ class MSELoss():
         """calls forward method when object(x) is called."""
         return self.forward(x,y)
     
-    def backward(self) -> np.ndarray:
+    def _backward(self):
         """Calculates the derivative of this layer with resepect to inputs.
         
         Returns (np.ndarray): derivative of the loss
         """
-        dout_dinp = 2/len(self.targs)*(self.preds-self.targs)
 
-        return dout_dinp
+        self.preds.grad += self.loss.grad*2/len(self.preds.data.T)*(self.preds.data-self.targs)
+
+
+    
+    def backward(self):
+        """This is called when loss.backward() is called, which calls our backward,
+         and creates a final node with gradient set to 1. which is the derivative of loss w.r.t loss.
+        """
+        self.loss.backward()
+
         
