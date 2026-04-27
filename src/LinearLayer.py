@@ -2,12 +2,22 @@ import numpy as np
 from .Node import ValueNode
 
 class Linear():
+    """
+    This is the linear class that performs affine transformation (XW+b).
+    
+    Args:
+        M (int) : in features(number of features in the input data)
+        N (int) : The number of distinct characteristics the layer is trying to "detect" or "extract" from the data. 
+                  Each unit in N represents a unique "filter" or "perspective" on the input.
+        weights (np.array) : predetermined weights if any, else the class will create one basis M and N
+        bias (np.array) : same as weights, but bias has 
+    """
 
     def __init__(self, M: int, N: int, weights=None, bias=None):
         self.M = M # in features
         self.N = N # out features
-        self.weights = None
-        self.bias = None
+        self._weights = None
+        self._bias = None
         self.update_parameters(weights, bias)
         self.x=None
         self.dw, self.db = None, None
@@ -30,14 +40,19 @@ class Linear():
         if not isinstance(bias, np.ndarray):
             bias = np.array(bias) if bias is not None else np.random.randn(1, self.N)
 
+        # check the dimension of the bias whether it's 1D or 2D array. if not 2D, then convert it after 
+        # verifying it's length
         if bias.ndim == 1:
             if len(bias) == self.N:
                 bias = bias[np.newaxis, :] # Correctly promotes (2,) to (1, 2)
             else:
                 raise ValueError(f"bias length {len(bias)} must match N {self.N}")
+        elif bias.ndim == 2:
+            if bias.shape[1] != self.N:
+                raise ValueError(f"bias.shape[1]:{bias.shape[1]} must match N:{self.N}")
+        else:
+            raise ValueError(f"bias can only have 2D not more than that!")
         
-
-
 
         
         # check for the shape compatibility of the provided weight matrix
@@ -45,21 +60,30 @@ class Linear():
         # (incase user provided weights in different order hoping it would be transposed later)
         # else raise error
         if weights.shape[0] == self.M:
-            self.weights = ValueNode(data=weights)
-            self.bias = ValueNode(data=bias)
+            self._weights = ValueNode(data=weights)
         elif weights.shape[1] == self.M:
-            self.weights = ValueNode(data=weights.T)
-            self.bias = ValueNode(data=bias)
+            self._weights = ValueNode(data=weights.T)
         else:
             raise ValueError(f"Shape mismatch: weights must be of shape({self.M},{self.N}) and bias should be either float or np.ndarray(1,)")
+        
+        self._bias = ValueNode(data=bias)
 
-
+    # @property is set to make the parameters method an attribute of the class rather than a method.
+    # everytime we access parameters we don't want to access weights and bias separately, instead we
+    # want it bundled up together as a tuple. but we want it to be separate nodes in the rest of the 
+    # code. 
     @property 
     def parameters(self) -> tuple:
-        return (self.weights, self.bias)
+        """Bundles up weights and bias together as tuples and returns the same. This method allows users
+        to only call parameters as an attribute rather than accessing weights and biases separately.
+        Also safeguards the weights and biases from modification.
+
+        This is what is passed to the optimizer.
+        """
+        return (self._weights, self._bias)
     
     def forward(self, x:np.ndarray) -> ValueNode:
-        """Computes linear function.
+        """Computes affine transformation.
         
         Args:
             x (np.ndarray) : inputs to the layer.
@@ -69,15 +93,7 @@ class Linear():
         else:
             self.x = ValueNode(data=x)
 
-        self.wx = ValueNode(data=np.matmul(self.x.data,self.weights.data), 
-                    op="matmul",
-                    _prev=[self.weights,self.x], 
-                    backward_fn=self._backward_wx)
-
-
-        self.wx_b = ValueNode(data=self.wx.data+self.bias.data, op="+", _prev=[self.wx, self.bias],
-                         backward_fn=self._backward_wx_b)
-        return self.wx_b
+        return (self.x @ self._weights) + self._bias
     
     def __call__(self, x:np.ndarray):
         """When object(x) is performed, this is the method that gets called.
@@ -87,24 +103,7 @@ class Linear():
         """
 
         return self.forward(x=x)
-    
-    def _backward_wx(self):
-        """Calculates the derivative w.r.t parameters and w.r.t inputs.
         
-        Args:
-            inp: derivative from the next layer.
-
-        Returns: derivative of this layer w.r.t it's inputs
-        """
-
-        self.weights.grad += np.matmul(self.x.data.T, self.wx.grad)
-        self.x.grad += np.matmul(self.wx.grad, self.weights.data.T)
-        return self.x.grad
-    
-    def _backward_wx_b(self):
-        self.wx.grad += self.wx_b.grad
-        self.bias.grad += np.sum(self.wx_b.grad, axis=0, keepdims=True) 
-    
     
 
 class Sigmoid():
