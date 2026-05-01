@@ -18,9 +18,9 @@ Current implementation: Functional Linear layers with integrated affine transfor
 
 I am not just building a library; I am mapping the evolution of Deep Learning architecture:
 
-Refactor (Next Up): Transitioning to Operator Overloading. Moving math out of classes and into the Tensor core (__add__, __matmul__) to allow for natural y=x@w+b syntax.
+Refactor (Next Up): Implementing CNNs
 
-Vision Phase: Implementing im2col based CNNs and ResNets from scratch.
+Vision Phase: Implementing ResNets from scratch.
 
 Attention Phase: Scaling to Multi-head Attention and Vision Transformers (ViTs).
 
