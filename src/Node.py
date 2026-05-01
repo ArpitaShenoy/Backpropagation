@@ -1,5 +1,13 @@
 import numpy as np
 class ValueNode():
+    """
+    Every input and output of the layers in the neural nets is a node of type ValueNode.
+
+    This is created dynamically as and when the layer computation happens and holds the information
+    like the data, operation that created it, its gradients, its children nodes(nodes that created this) and
+    backward function of the operation.
+    """
+
     def __init__(self, data, grad=None, op=None, _prev=(), backward_fn=None):
         self.data = data
         self.grad = np.zeros_like(self.data)
@@ -16,9 +24,17 @@ class ValueNode():
             # gradient for self (handling broadcasting)
             s_grad = out.grad
 
+            # sum along all the preceeding axes and collapse them if the dimension of data is lower than
+            # the dimension of the gradients
             while s_grad.ndim > self.data.ndim:
                 s_grad = s_grad.sum(axis=0)
             
+            # loop through all the axes to see which axes were broadcasted(data.size == 1)
+            # to the higher dimension, sum across those axes, but do not collapse it, 
+            # keep that dimension as 1.
+            # so if the data was originally (32,1) and the gradients is (32,32) the second
+            # dimension was broadcasted and now we can't have the gradients of this layer to be 
+            # (32,32) so we sum across second dimension and keep that dimension to get (32,1)
             for axis, size in enumerate(self.data.shape):
                 if size==1:
                     s_grad = s_grad.sum(axis=axis, keepdims=True)

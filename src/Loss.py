@@ -2,6 +2,9 @@ import numpy as np
 from .Node import ValueNode
 
 class MSELoss():
+    """
+    Calculates Mean Squared Error of the prediction w.r.t the ground truth.
+    """
     
     def __init__(self):
         self.loss = None
@@ -17,29 +20,34 @@ class MSELoss():
         """
         # check if the prediction shape matches the targs shape
         if isinstance(preds, ValueNode):
-            self.x = preds
+            self.preds = preds
+        elif isinstance(preds, np.ndarray):
+            self.preds = ValueNode(data=preds)
         else:
-            self.x = ValueNode(data=preds)
+            raise TypeError(f"preds must be of type np.ndarray")
+        
         if not isinstance(targs, np.ndarray):
             targs = np.array(targs)
-        if preds.data.size == targs.size:
+        
+        
+        # check if the sizes match, if not check if the transposed targs matches the size with preds
+        # if both fail, then raise ValueError
+        if self.preds.data.size == targs.size:
             # calculate the mean squared error
             self.targs = targs
-            self.loss = ValueNode(data=np.sum(((targs-preds.data)**2))/preds.data.size,
+            self.loss = ValueNode(data=np.sum(((self.targs-self.preds.data)**2))/self.preds.data.size,
                                   op="mse",
-                                  _prev=[preds],
+                                  _prev=[self.preds],
                                   backward_fn=self._backward)
-        elif preds.data.size == targs.T.size:
+        elif self.preds.data.size == targs.T.size:
             self.targs = targs.T
-            self.loss = ValueNode(data=np.sum(((targs-preds.data.T)**2))/preds.data.size,
+            self.loss = ValueNode(data=np.sum(((self.targs-self.preds.data)**2))/self.preds.data.size,
                                   op="mse",
-                                  _prev=[preds],
+                                  _prev=[self.preds],
                                   backward_fn=self._backward)
         else:
-            raise ValueError(f"Please check the sizes, {preds.data.size}!={targs.size}")
+            raise ValueError(f"Please check the sizes, {self.preds.data.size}!={self.targs.size}")
 
-        # save the predictions to calculate the derivatives later
-        self.preds = preds
         
 
         return self.loss

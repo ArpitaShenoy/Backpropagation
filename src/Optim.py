@@ -1,6 +1,11 @@
 import numpy as np
 
 class SGD:
+    """
+    Updates the parameters of all the linear layers and resets their gradients to 0.
+
+    This method takes in parameters of linear layers and a learning rate(lr) which defaults to 0.05.
+    """
     def __init__(self, params,lr=None):
         self.params = params
         self.lr = lr
@@ -10,8 +15,7 @@ class SGD:
         
         If learning rate is not provided, it defaults to 0.05
         """
-        if not self.lr:
-            self.lr = 0.05
+        self.lr = 0.05 if not self.lr else self.lr
 
         for param in self.params:
             param[0].data -= self.lr*param[0].grad

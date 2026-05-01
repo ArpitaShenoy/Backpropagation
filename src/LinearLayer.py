@@ -88,10 +88,13 @@ class Linear():
         Args:
             x (np.ndarray) : inputs to the layer.
         """
-        if isinstance(x, ValueNode):
+        # check if x is np.ndarray
+        if isinstance(x, np.ndarray):
+            self.x = ValueNode(data=x)
+        elif isinstance(x, ValueNode):
             self.x = x
         else:
-            self.x = ValueNode(data=x)
+            raise TypeError(f"X must be a numpy array. Other datatype isn't acceptable")
 
         return (self.x @ self._weights) + self._bias
     
@@ -107,6 +110,10 @@ class Linear():
     
 
 class Sigmoid():
+    """
+    Performs Sigmoid operation and also holds the backward method, which calculates the 
+    derivative of the node that holds this operation.
+    """
 
     def __init__(self):
         self.z = None
@@ -117,12 +124,14 @@ class Sigmoid():
         """Calculates the Sigmoid.
         
         Args:
-            x (np.ndarray) : this is the input to the sigmoid coming from previous layer.
+            x (ValueNode) : this is the input to the sigmoid coming from previous layer.
         """
-        if isinstance(x, ValueNode):
+        if isinstance(x, np.ndarray):
+            self.x = ValueNode(data=x)
+        elif isinstance(x, ValueNode):
             self.x = x
         else:
-            self.x = ValueNode(data=x)
+            raise TypeError(f"input must be a numpy array.")
 
         self.z = ValueNode(data=1/(1+np.exp(-self.x.data)), op="sigmoid", _prev=[self.x],
                            backward_fn=self._backward)
@@ -150,6 +159,9 @@ class Sigmoid():
 
 
 class ReLU():
+    """
+    Rectified Linear Unit, which simply passes the data where the input is greater than 0.
+    """
 
     def __init__(self):
         self.z = None
@@ -165,8 +177,10 @@ class ReLU():
         """
         if isinstance(x, ValueNode):
             self.x = x
-        else:
+        elif isinstance(x, np.ndarray):
             self.x = ValueNode(data=x)
+        else:
+            raise TypeError(f"input must be of type numpy array.")
 
         self.z = ValueNode(data=self.x.data*(self.x.data>0),
                            op="ReLU",
@@ -188,10 +202,18 @@ class ReLU():
 
 
 class Sequential:
+    """
+    This is similar to PyTorch's Sequential Layer which weaves the layers together and makes it easier
+    to call just one forward method which then loops over all, instead of us, calling each layer one by 
+    one.
+    """
     def __init__(self, *args):
         self.layers = args
 
-    def forward(self,x):
+    def forward(self,x) -> ValueNode:
+        """
+        Calls all the layers in a loop and returns the final Node.
+        """
         for layer in self.layers:
             x = layer(x)
         return x
@@ -201,6 +223,11 @@ class Sequential:
     
     @property 
     def parameters(self) -> tuple:
+        """
+        Bundles up and returns the list of parameters of all the linear layer defined in the
+        sequential class.
+        """
+
         params = []
         for layer in self.layers:
 
